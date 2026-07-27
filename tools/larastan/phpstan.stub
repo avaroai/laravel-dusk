@@ -1,0 +1,109 @@
+<?php
+
+namespace Laravel\Dusk\Concerns;
+
+trait InteractsWithElements
+{
+    /**
+     * @param string $field
+     * @param mixed $value
+     * @return $this
+     */
+    public function check($field, $value = null)
+    {
+    }
+
+    /**
+     * @param string $field
+     * @param mixed $value
+     * @return $this
+     */
+    public function radio($field, $value)
+    {
+    }
+
+    /**
+     * @param string $field
+     * @param mixed $value
+     * @return $this
+     */
+    public function select($field, $value = null)
+    {
+    }
+
+    /**
+     * @param string $field
+     * @param mixed $value
+     * @return $this
+     */
+    public function type($field, $value)
+    {
+    }
+}
+
+trait MakesAssertions
+{
+    /**
+     * @param string $field
+     * @param mixed $value
+     * @return $this
+     */
+    public function assertChecked($field, $value = null)
+    {
+    }
+
+    /**
+     * @param string $field
+     * @param mixed $value
+     * @return $this
+     */
+    public function assertInputValue($field, $value)
+    {
+    }
+
+    /**
+     * @param string $field
+     * @param mixed $value
+     * @return $this
+     */
+    public function assertNotChecked($field, $value = null)
+    {
+    }
+
+    /**
+     * @param string $field
+     * @param mixed $value
+     * @return $this
+     */
+    public function assertRadioSelected($field, $value)
+    {
+    }
+
+    /**
+     * @param mixed $text
+     * @param bool $ignoreCase
+     * @return $this
+     */
+    public function assertSee($text, $ignoreCase = false)
+    {
+    }
+
+    /**
+     * @param string $selector
+     * @param mixed $text
+     * @param bool $ignoreCase
+     * @return $this
+     */
+    public function assertSeeIn($selector, $text, $ignoreCase = false)
+    {
+    }
+
+    /**
+     * @param string $field
+     * @param mixed $value
+     * @return $this
+     */
+    public function assertSelected($field, $value)
+    {
+    }
+}

@@ -1,0 +1,153 @@
+<?php
+
+namespace AvaroAI\LaravelDusk;
+
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\URL;
+use Laravel\Dusk\Browser as DuskBrowser;
+use AvaroAI\LaravelDusk\Facades\Mocking;
+use AvaroAI\LaravelDusk\Exceptions\BrowserJavascriptRequestError;
+
+class Browser extends DuskBrowser
+{
+    /**
+     * Javascript requests timeout in seconds.
+     *
+     * @var int
+     */
+    public static $javascriptRequestsTimeout = 1;
+
+    /**
+     * Mock a facade and return the mock proxy.
+     *
+     * @param  string   $facade
+     * @param  mixed[]  ...$arguments
+     * @return \AvaroAI\LaravelDusk\MockingProxy
+     */
+    public function mock(string $facade, ...$arguments)
+    {
+        // Spread statically registered fakes to server
+        if (Mocking::hasFake($facade)) {
+            $this->registerFake($facade, Mocking::getFake($facade));
+        }
+
+        $this->executeJavascriptRequest(
+            'POST',
+            '/_dusk-mocking/mock',
+            [
+                'facade'    => $facade,
+                'arguments' => json_encode($arguments),
+            ]
+        );
+
+        return new MockingProxy($this, $facade);
+    }
+
+    /**
+     * Alias for mock.
+     *
+     * @param  string   $facade
+     * @param  mixed[]  ...$arguments
+     * @return \AvaroAI\LaravelDusk\MockingProxy
+     */
+    public function fake(string $facade, ...$arguments)
+    {
+        return $this->mock($facade, ...$arguments);
+    }
+
+    /**
+     * Register fake class.
+     *
+     * @param  string   $facade
+     * @param  string   $fake
+     * @return AvaroAI\LaravelDusk\Browser
+     */
+    public function registerFake(string $facade, $fake)
+    {
+        $this->executeJavascriptRequest(
+            'POST',
+            '/_dusk-mocking/register',
+            [
+                'facade' => $facade,
+                'fake'   => $fake,
+            ]
+        );
+
+        return $this;
+    }
+
+    /**
+     * Execute a javascript request in the browser (only GET and POST methods supported).
+     *
+     * @param  string   $method
+     * @param  array    $url
+     * @param  array    $params
+     * @param  bool     $useSession
+     * @param  bool     $responseType
+     * @return array
+     */
+    public function executeJavascriptRequest($method, $url, $params = [], $useSession = true)
+    {
+        $this->driver->manage()->timeouts()->setScriptTimeout(static::$javascriptRequestsTimeout);
+
+        $result = $this->driver->executeAsyncScript(
+            'var callback = arguments[0];'.
+            'var request = new XMLHttpRequest();'.
+            $this->buildJavascriptRequestCredentialsScript($useSession).
+            $this->buildJavascriptOpenRequestScript($method, $url, $params).
+            'request.onreadystatechange = function() {'.
+                'try {'.
+                    'if (request.readyState == XMLHttpRequest.DONE) {'.
+                        'if (request.getResponseHeader("Content-Type") == "application/json") {'.
+                            'callback(JSON.parse(request.responseText));'.
+                        '} else {'.
+                            'callback(request.responseText);'.
+                        '}'.
+                    '}'.
+                '} catch (e) {'.
+                    'callback("error:" + e.message);'.
+                '}'.
+            '};'.
+            $this->buildJavascriptSendRequestScript($method, $params)
+        );
+
+        if (is_string($result) && Str::startsWith($result, 'error:')) {
+            throw new BrowserJavascriptRequestError(substr($result, 6));
+        }
+
+        return $result;
+    }
+
+    private function buildJavascriptRequestCredentialsScript($useSession)
+    {
+        return $useSession ? 'request.withCredentials = true;' : '';
+    }
+
+    private function buildJavascriptOpenRequestScript($method, $url, $params)
+    {
+        if (! Str::startsWith($url, ['http://', 'https://'])) {
+            $url = static::$baseUrl.'/'.ltrim($url, '/');
+        }
+
+        switch ($method) {
+            case 'GET':
+                return 'request.open("GET", "'.$url.'?'.http_build_query($params).'", true);';
+            case 'POST':
+                return 'request.open("POST", "'.$url.'", true);'.
+                    'request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");';
+        }
+    }
+
+    private function buildJavascriptSendRequestScript($method, $params)
+    {
+        switch ($method) {
+            case 'GET':
+                return 'request.send();';
+            case 'POST':
+                $token = $this->visit(URL::to('/_dusk-mocking/csrf_token'))->driver->getPageSource();
+                $token = json_decode(strip_tags($token));
+
+                return 'request.send("'.http_build_query(array_merge($params, ['_token' => $token])).'");';
+        }
+    }
+}
