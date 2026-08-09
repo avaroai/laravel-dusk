@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace AvaroAI\LaravelDusk\Fakes;
 
+use Closure;
 use RuntimeException;
 use Laravel\Ai\AiManager;
 use InvalidArgumentException;
 use Laravel\Ai\Contracts\Agent;
+use Laravel\Ai\QueuedAgentPrompt;
 use Illuminate\Support\Facades\App;
+use Laravel\Ai\Prompts\AgentPrompt;
 use Laravel\Ai\Responses\Data\ToolCall;
+use PHPUnit\Framework\Assert as PHPUnit;
 use Laravel\Ai\Contracts\Providers\TextProvider;
 
 final class AiFake extends AiManager
@@ -65,6 +69,65 @@ final class AiFake extends AiManager
     }
 
     /**
+     * Assert that an agent received a matching prompt.
+     *
+     * @param Closure(string): bool | string $callback
+     * @param array<int, string> | null $prompts
+     *
+     */
+    public function assertAgentWasPrompted(string $agent, Closure | string $callback, ?array $prompts = null, ?string $message = null) : self
+    {
+        $callback = is_string($callback)
+            ? fn(string $prompt) : bool => $prompt === $callback
+            : $callback;
+
+        foreach ($prompts ?? $this->recordedPrompts[$agent] ?? [] as $prompt) {
+            if (is_string($prompt) && $callback($prompt)) {
+                return $this;
+            }
+        }
+
+        PHPUnit::fail($message ?? 'An expected prompt was not received.');
+    }
+
+    /**
+     * Assert that an agent did not receive a matching prompt.
+     *
+     * @param Closure(string): bool | string $callback
+     * @param array<int, string> | null $prompts
+     *
+     */
+    public function assertAgentNotPrompted(string $agent, Closure | string $callback, ?array $prompts = null, ?string $message = null) : self
+    {
+        $callback = is_string($callback)
+            ? fn(string $prompt) : bool => $prompt === $callback
+            : $callback;
+
+        foreach ($prompts ?? $this->recordedPrompts[$agent] ?? [] as $prompt) {
+            if (is_string($prompt) && $callback($prompt)) {
+                PHPUnit::fail($message ?? 'An unexpected prompt was received.');
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * Record transport-safe prompt details for later assertions.
+     *
+     */
+    public function recordPrompt(AgentPrompt | QueuedAgentPrompt $prompt) : self
+    {
+        $prompts = $prompt instanceof QueuedAgentPrompt
+            ? 'recordedQueuedPrompts'
+            : 'recordedPrompts';
+
+        $this->{$prompts}[$prompt->agent::class][] = $prompt->prompt;
+
+        return $this;
+    }
+
+    /**
      * Resolve the faked text provider for the given agent.
      *
      */
@@ -81,6 +144,9 @@ final class AiFake extends AiManager
 
     /**
      * Describe a tool call response that can cross the browser process boundary.
+     *
+     * @param array<string, mixed> $arguments
+     * @return array<string, mixed>
      *
      */
     public static function toolCall(string $id, string $name, array $arguments) : array
