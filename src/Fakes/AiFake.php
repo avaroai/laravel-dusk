@@ -139,7 +139,11 @@ final class AiFake extends AiManager
             throw new RuntimeException("Attempted prompt for unfaked agent [{$agent_class}].");
         }
 
-        return parent::textProviderFor($agent, $name);
+        return new AiTextProviderFake(
+            provider : parent::textProviderFor($agent, $name),
+            fake     : $this,
+            agent    : $agent::class,
+        );
     }
 
     /**
@@ -157,6 +161,29 @@ final class AiFake extends AiManager
             'name'              => $name,
             'arguments'         => $arguments,
         ];
+    }
+
+    /**
+     * Temporarily expose approval decisions to the SDK while retaining the fake gateway.
+     *
+     * @param Closure(): mixed $callback
+     *
+     */
+    public function withoutAgentFake(string $agent, Closure $callback) : mixed
+    {
+        if (! isset($this->fakeAgentGateways[$agent])) {
+            throw new RuntimeException("Agent [{$agent}] has not been faked.");
+        }
+
+        $gateway = $this->fakeAgentGateways[$agent];
+
+        unset($this->fakeAgentGateways[$agent]);
+
+        try {
+            return $callback();
+        } finally {
+            $this->fakeAgentGateways[$agent] = $gateway;
+        }
     }
 
     /**
