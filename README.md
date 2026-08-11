@@ -7,5 +7,6 @@ This version makes a few tweaks specific to AvaroAI projects and is mostly inten
 ## Changes
 
 - Switched to session driver by default.
-- Added support for HTTP mocking
-- Added support for Larastan
+- Added support for HTTP mocking.
+- Added support for Laravel AI SDK mocking.
+- Added support for Larastan.

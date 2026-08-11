@@ -5,6 +5,7 @@
     "license": "MIT",
     "require": {
         "php": ">=8.5.0",
+        "laravel/ai": ">=0.10.3",
         "laravel/dusk": ">=8.0.0",
         "laravel/framework": ">=13.0.0"
     },
