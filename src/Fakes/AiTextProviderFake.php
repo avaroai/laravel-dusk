@@ -133,4 +133,13 @@ final class AiTextProviderFake implements TextProvider
 
         return $this;
     }
+
+    /**
+     * Retrieve a provider that sends the given headers with each request.
+     *
+     */
+    public function withHeaders(array $headers) : static
+    {
+        return new self($this->provider->withHeaders($headers), $this->fake, $this->agent);
+    }    
 }
