@@ -26,7 +26,7 @@ final class HttpFake extends Factory
     {
         return [
             'recording',
-            'recorded',
+            // 'recorded',
             'preventStrayRequests',
             'allowedStrayRequestUrls',
             'config',
